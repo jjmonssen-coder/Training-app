@@ -29,13 +29,14 @@
   };
 
   // Standardpakke med øvelser (navn + kategori). Vekt/reps beregnes ved seeding.
+  // repMin/repMax kan settes eksplisitt – f.eks. for mageøvelser med høyt repvolum.
   const STARTER_EXERCISES = [
     { name: "Leg Press",             category: "lower_big" },
     { name: "Leg Extension",         category: "lower_small" },
     { name: "Biceps Curl",           category: "isolation" },
     { name: "Seated Row",            category: "upper_pull" },
-    { name: "Sit-ups",               category: "bodyweight" },
-    { name: "Cross-body Leg Raises", category: "bodyweight" },
+    { name: "Sit-ups",               category: "bodyweight", repMin: 15, repMax: 25 },
+    { name: "Cross-body Leg Raises", category: "bodyweight", repMin: 15, repMax: 25 },
     { name: "Incline Chest Press",   category: "upper_push" },
     { name: "Deadlift",              category: "lower_big" },
   ];
@@ -53,8 +54,8 @@
         category: s.category,
         weight: recommendStartWeight(s.category),
         increment: CATEGORY[s.category].increment,
-        repMin: rMin,
-        repMax: rMax,
+        repMin: s.repMin != null ? s.repMin : rMin,
+        repMax: s.repMax != null ? s.repMax : rMax,
         sets: 3,
       });
       added++;
@@ -296,8 +297,8 @@
 
   document.getElementById("exercise-form").addEventListener("submit", (e) => {
     e.preventDefault();
-    const repMin = clampInt(document.getElementById("ex-repmin").value, 1, 30, 8);
-    const repMax = clampInt(document.getElementById("ex-repmax").value, repMin, 30, Math.max(repMin, 12));
+    const repMin = clampInt(document.getElementById("ex-repmin").value, 1, 100, 8);
+    const repMax = clampInt(document.getElementById("ex-repmax").value, repMin, 100, Math.max(repMin, 12));
     const data = {
       name: document.getElementById("ex-name").value.trim(),
       category: document.getElementById("ex-category").value,
