@@ -70,7 +70,10 @@
     <section class="view" id="view-exercises" hidden>
       <div class="view-head">
         <h2>Øvelser</h2>
-        <button class="btn primary" id="add-exercise-btn">+ Ny øvelse</button>
+        <div class="btn-row">
+          <button class="btn ghost" id="seed-exercises-btn-2">Standardøvelser</button>
+          <button class="btn primary" id="add-exercise-btn">+ Ny øvelse</button>
+        </div>
       </div>
       <p class="muted" id="exercises-intro">
         Legg inn øvelsene du bruker. Appen foreslår startvekt og repetisjoner
@@ -79,7 +82,10 @@
       <div id="exercise-list" class="exercise-list"></div>
       <div id="exercises-empty" class="empty-state" hidden>
         <p>Ingen øvelser ennå.</p>
-        <button class="btn primary" id="add-exercise-btn-2">Legg til din første øvelse</button>
+        <div class="btn-row" style="justify-content:center">
+          <button class="btn primary" id="seed-exercises-btn">Legg til standardøvelser</button>
+          <button class="btn ghost" id="add-exercise-btn-2">Legg til én selv</button>
+        </div>
       </div>
     </section>
 

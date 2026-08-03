@@ -28,6 +28,41 @@
     general:     [5, 8],
   };
 
+  // Standardpakke med øvelser (navn + kategori). Vekt/reps beregnes ved seeding.
+  const STARTER_EXERCISES = [
+    { name: "Leg Press",             category: "lower_big" },
+    { name: "Leg Extension",         category: "lower_small" },
+    { name: "Biceps Curl",           category: "isolation" },
+    { name: "Seated Row",            category: "upper_pull" },
+    { name: "Sit-ups",               category: "bodyweight" },
+    { name: "Cross-body Leg Raises", category: "bodyweight" },
+    { name: "Incline Chest Press",   category: "upper_push" },
+    { name: "Deadlift",              category: "lower_big" },
+  ];
+
+  // Oppretter standardøvelsene med anbefalinger. Hopper over de som finnes fra før.
+  function seedStarterExercises() {
+    const existing = new Set(state.exercises.map((e) => e.name.toLowerCase()));
+    const [rMin, rMax] = recommendReps();
+    let added = 0;
+    for (const s of STARTER_EXERCISES) {
+      if (existing.has(s.name.toLowerCase())) continue;
+      state.exercises.push({
+        id: uid(),
+        name: s.name,
+        category: s.category,
+        weight: recommendStartWeight(s.category),
+        increment: CATEGORY[s.category].increment,
+        repMin: rMin,
+        repMax: rMax,
+        sets: 3,
+      });
+      added++;
+    }
+    if (added > 0) saveState();
+    return added;
+  }
+
   /* ---------- Tilstand ---------- */
 
   let state = loadState();
@@ -197,8 +232,9 @@
       goal: document.getElementById("ob-goal").value,
     };
     saveState();
+    seedStarterExercises();
     updateUnitLabels();
-    toast("Klar! Legg til øvelsene dine.");
+    toast("Klar! Standardøvelsene er lagt til.");
     showView("exercises");
   });
 
@@ -350,6 +386,14 @@
 
   document.getElementById("add-exercise-btn").addEventListener("click", () => openExerciseModal());
   document.getElementById("add-exercise-btn-2").addEventListener("click", () => openExerciseModal());
+
+  function handleSeedClick() {
+    const added = seedStarterExercises();
+    renderExercises();
+    toast(added > 0 ? `La til ${added} standardøvelser` : "Alle standardøvelsene finnes allerede");
+  }
+  document.getElementById("seed-exercises-btn").addEventListener("click", handleSeedClick);
+  document.getElementById("seed-exercises-btn-2").addEventListener("click", handleSeedClick);
   document.getElementById("close-exercise-modal").addEventListener("click", closeExerciseModal);
   document.getElementById("cancel-exercise").addEventListener("click", closeExerciseModal);
   modal.addEventListener("click", (e) => { if (e.target === modal) closeExerciseModal(); });
