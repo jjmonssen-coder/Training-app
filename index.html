@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Styrkeprogresjon</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <span class="logo">🏋️</span>
+      <h1>Styrkeprogresjon</h1>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button class="tab" data-view="exercises">Øvelser</button>
+      <button class="tab" data-view="log">Logg økt</button>
+      <button class="tab" data-view="progress">Utvikling</button>
+      <button class="tab" data-view="settings">Innstillinger</button>
+    </nav>
+  </header>
+
+  <main id="app">
+    <!-- Onboarding -->
+    <section class="view" id="view-onboarding" hidden>
+      <div class="card center-card">
+        <h2>Velkommen 👋</h2>
+        <p class="muted">
+          Fyll inn litt om deg selv, så gir appen deg anbefalt startvekt og
+          repetisjoner for øvelsene dine. Alt lagres lokalt i nettleseren din.
+        </p>
+        <form id="onboarding-form" class="form-grid">
+          <label>
+            Kroppsvekt
+            <div class="input-suffix">
+              <input type="number" id="ob-bodyweight" min="20" max="300" step="0.5" required placeholder="80" />
+              <span id="ob-unit-suffix">kg</span>
+            </div>
+          </label>
+          <label>
+            Enhet
+            <select id="ob-unit">
+              <option value="kg">Kilogram (kg)</option>
+              <option value="lb">Pund (lb)</option>
+            </select>
+          </label>
+          <label>
+            Erfaringsnivå
+            <select id="ob-level">
+              <option value="beginner">Nybegynner (&lt; 6 mnd)</option>
+              <option value="intermediate" selected>Middels (6 mnd–2 år)</option>
+              <option value="advanced">Erfaren (2 år+)</option>
+            </select>
+          </label>
+          <label>
+            Treningsmål
+            <select id="ob-goal">
+              <option value="strength">Maksimal styrke (3–5 reps)</option>
+              <option value="hypertrophy" selected>Muskelvekst (8–12 reps)</option>
+              <option value="general">Blanding (5–8 reps)</option>
+            </select>
+          </label>
+          <button type="submit" class="btn primary full">Kom i gang</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Exercises -->
+    <section class="view" id="view-exercises" hidden>
+      <div class="view-head">
+        <h2>Øvelser</h2>
+        <button class="btn primary" id="add-exercise-btn">+ Ny øvelse</button>
+      </div>
+      <p class="muted" id="exercises-intro">
+        Legg inn øvelsene du bruker. Appen foreslår startvekt og repetisjoner
+        automatisk – du kan alltid justere.
+      </p>
+      <div id="exercise-list" class="exercise-list"></div>
+      <div id="exercises-empty" class="empty-state" hidden>
+        <p>Ingen øvelser ennå.</p>
+        <button class="btn primary" id="add-exercise-btn-2">Legg til din første øvelse</button>
+      </div>
+    </section>
+
+    <!-- Log workout -->
+    <section class="view" id="view-log" hidden>
+      <div class="view-head">
+        <h2>Logg økt</h2>
+      </div>
+      <div class="card">
+        <label class="block">
+          Velg øvelse
+          <select id="log-exercise"></select>
+        </label>
+
+        <div id="log-recommendation" class="recommendation"></div>
+
+        <label class="block">
+          Dato
+          <input type="date" id="log-date" />
+        </label>
+
+        <div id="log-sets" class="sets-editor"></div>
+        <button class="btn ghost" id="add-set-btn" type="button">+ Legg til sett</button>
+
+        <div class="log-actions">
+          <button class="btn primary" id="save-log-btn" type="button">Lagre økt</button>
+        </div>
+      </div>
+
+      <div class="view-head">
+        <h3>Siste økter</h3>
+      </div>
+      <div id="recent-logs" class="recent-logs"></div>
+    </section>
+
+    <!-- Progress -->
+    <section class="view" id="view-progress" hidden>
+      <div class="view-head">
+        <h2>Utvikling</h2>
+        <select id="progress-exercise"></select>
+      </div>
+      <div id="progress-empty" class="empty-state" hidden>
+        <p>Logg noen økter for å se utviklingen din her.</p>
+      </div>
+      <div id="progress-content" hidden>
+        <div class="stat-row" id="progress-stats"></div>
+        <div class="card">
+          <h3>Estimert 1RM over tid</h3>
+          <p class="muted small">Beregnet med Epley-formelen fra beste sett hver økt.</p>
+          <canvas id="progress-chart" width="700" height="320"></canvas>
+        </div>
+        <div class="card">
+          <h3 id="next-target-title">Neste anbefalte mål</h3>
+          <div id="next-target"></div>
+        </div>
+        <div class="card">
+          <h3>Historikk</h3>
+          <div id="progress-history"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section class="view" id="view-settings" hidden>
+      <div class="view-head">
+        <h2>Innstillinger</h2>
+      </div>
+      <div class="card">
+        <h3>Profil</h3>
+        <div class="form-grid">
+          <label>
+            Kroppsvekt
+            <div class="input-suffix">
+              <input type="number" id="set-bodyweight" min="20" max="300" step="0.5" />
+              <span class="unit-suffix">kg</span>
+            </div>
+          </label>
+          <label>
+            Enhet
+            <select id="set-unit">
+              <option value="kg">Kilogram (kg)</option>
+              <option value="lb">Pund (lb)</option>
+            </select>
+          </label>
+          <label>
+            Erfaringsnivå
+            <select id="set-level">
+              <option value="beginner">Nybegynner</option>
+              <option value="intermediate">Middels</option>
+              <option value="advanced">Erfaren</option>
+            </select>
+          </label>
+          <label>
+            Treningsmål
+            <select id="set-goal">
+              <option value="strength">Maksimal styrke (3–5 reps)</option>
+              <option value="hypertrophy">Muskelvekst (8–12 reps)</option>
+              <option value="general">Blanding (5–8 reps)</option>
+            </select>
+          </label>
+        </div>
+        <button class="btn primary" id="save-settings-btn">Lagre profil</button>
+      </div>
+
+      <div class="card">
+        <h3>Data</h3>
+        <p class="muted small">Alt lagres lokalt i nettleseren. Ta backup ved å eksportere.</p>
+        <div class="btn-row">
+          <button class="btn ghost" id="export-btn">Eksporter data</button>
+          <button class="btn ghost" id="import-btn">Importer data</button>
+          <input type="file" id="import-file" accept="application/json" hidden />
+          <button class="btn danger" id="reset-btn">Nullstill alt</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Exercise modal -->
+  <div class="modal-overlay" id="exercise-modal" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="exercise-modal-title">Ny øvelse</h3>
+        <button class="icon-btn" id="close-exercise-modal">✕</button>
+      </div>
+      <form id="exercise-form" class="form-grid">
+        <label class="block">
+          Navn
+          <input type="text" id="ex-name" required placeholder="F.eks. Benkpress" />
+        </label>
+        <label class="block">
+          Type øvelse
+          <select id="ex-category">
+            <option value="lower_big">Underkropp, stor (knebøy, markløft)</option>
+            <option value="lower_small">Underkropp, liten (utfall, leg curl)</option>
+            <option value="upper_push">Overkropp press (benk, skulderpress)</option>
+            <option value="upper_pull">Overkropp trekk (roing, nedtrekk)</option>
+            <option value="isolation">Isolasjon (biceps, triceps, hev)</option>
+            <option value="bodyweight">Kroppsvekt (pull-up, dips)</option>
+          </select>
+        </label>
+        <div class="two-col">
+          <label>
+            Startvekt (<span class="unit-suffix">kg</span>)
+            <input type="number" id="ex-weight" min="0" step="0.5" />
+          </label>
+          <label>
+            Vektøkning (<span class="unit-suffix">kg</span>)
+            <input type="number" id="ex-increment" min="0.5" step="0.5" />
+          </label>
+        </div>
+        <div class="two-col">
+          <label>
+            Reps fra
+            <input type="number" id="ex-repmin" min="1" max="30" />
+          </label>
+          <label>
+            Reps til
+            <input type="number" id="ex-repmax" min="1" max="30" />
+          </label>
+        </div>
+        <label>
+          Antall sett
+          <input type="number" id="ex-sets" min="1" max="10" value="3" />
+        </label>
+        <div class="rec-hint" id="ex-rec-hint"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn ghost" id="cancel-exercise">Avbryt</button>
+          <button type="submit" class="btn primary">Lagre øvelse</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
