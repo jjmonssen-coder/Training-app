@@ -73,6 +73,7 @@
       profile: null, // { bodyweight, unit, level, goal }
       exercises: [], // { id, name, category, weight, increment, repMin, repMax, sets }
       logs: [],      // { id, date, exerciseId, sets:[{weight,reps}] }
+      settings: { autoExportEvery: 5 }, // 0 = av
     };
   }
 
@@ -81,7 +82,10 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return defaultState();
       const parsed = JSON.parse(raw);
-      return Object.assign(defaultState(), parsed);
+      const s = Object.assign(defaultState(), parsed);
+      // Sørg for at nye innstillingsfelter alltid har standardverdier.
+      s.settings = Object.assign({ autoExportEvery: 5 }, s.settings || {});
+      return s;
     } catch (e) {
       console.error("Kunne ikke laste data:", e);
       return defaultState();
@@ -496,7 +500,8 @@
     const date = document.getElementById("log-date").value || todayISO();
     state.logs.push({ id: uid(), date, exerciseId: exId, sets });
     saveState();
-    toast("Økt lagret 💾");
+    const backedUp = maybeAutoExport();
+    toast(backedUp ? "Økt lagret + backup lastet ned 💾" : "Økt lagret 💾");
     onLogExerciseChange();
     renderRecentLogs();
   });
@@ -698,6 +703,7 @@
     document.getElementById("set-unit").value = state.profile.unit;
     document.getElementById("set-level").value = state.profile.level;
     document.getElementById("set-goal").value = state.profile.goal;
+    document.getElementById("auto-export").value = String(state.settings.autoExportEvery);
   }
 
   document.getElementById("save-settings-btn").addEventListener("click", () => {
@@ -710,14 +716,44 @@
     toast("Profil lagret");
   });
 
-  document.getElementById("export-btn").addEventListener("click", () => {
+  function backupFilename(auto) {
+    const d = new Date();
+    const stamp = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    return `styrkeprogresjon-${auto ? "backup" : "data"}-${stamp}.json`;
+  }
+
+  function downloadBackup(filename) {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "styrkeprogresjon-data.json";
+    a.download = filename;
+    document.body.appendChild(a);
     a.click();
+    a.remove();
     URL.revokeObjectURL(url);
+  }
+
+  // Laster ned en backup automatisk når antall lagrede økter treffer intervallet.
+  // Kalles innenfor klikk-handleren for lagring, så nettleseren tillater nedlasting.
+  function maybeAutoExport() {
+    const every = Number(state.settings.autoExportEvery) || 0;
+    if (!every) return false;
+    if (state.logs.length > 0 && state.logs.length % every === 0) {
+      downloadBackup(backupFilename(true));
+      return true;
+    }
+    return false;
+  }
+
+  document.getElementById("export-btn").addEventListener("click", () => {
+    downloadBackup(backupFilename(false));
+  });
+
+  document.getElementById("auto-export").addEventListener("change", (e) => {
+    state.settings.autoExportEvery = Number(e.target.value) || 0;
+    saveState();
+    toast(state.settings.autoExportEvery ? "Automatisk backup på" : "Automatisk backup av");
   });
 
   document.getElementById("import-btn").addEventListener("click", () =>

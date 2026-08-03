@@ -82,10 +82,19 @@ Beregnes med **Epley-formelen**: `1RM = vekt × (1 + reps / 30)`. Den lar deg
 sammenligne styrke på tvers av økter selv om vekt og reps varierer.
 
 ## Data og personvern
-- Alt lagres lokalt i nettleseren din.
+- Alt lagres lokalt i nettleseren din (`localStorage`).
 - **Eksporter** til en JSON-fil under Innstillinger for backup.
-- **Importer** for å flytte data til en annen enhet/nettleser.
+- **Automatisk backup**: velg i Innstillinger at appen skal laste ned en
+  backup-fil automatisk etter hver økt eller hver 3./5./10. økt. Nedlastingen
+  skjer i det du lagrer en økt.
+- **Importer** for å flytte data til en annen enhet/nettleser, eller for å
+  gjenopprette fra en backup.
 - **Nullstill** sletter alt.
+
+> Å oppdatere appens kode sletter ikke historikken – dataene ligger adskilt fra
+> koden under en fast lagringsnøkkel, og innlasteren er bakoverkompatibel. Åpne
+> appen på samme «adresse» hver gang (f.eks. alltid `http://localhost:8000`),
+> siden `localStorage` er knyttet til adressen.
 
 ## Teknologi
 Ren HTML, CSS og JavaScript. Ingen avhengigheter, ingen byggesteg. Grafen er

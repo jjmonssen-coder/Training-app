@@ -193,6 +193,17 @@
       <div class="card">
         <h3>Data</h3>
         <p class="muted small">Alt lagres lokalt i nettleseren. Ta backup ved å eksportere.</p>
+        <label class="block">
+          Automatisk backup
+          <select id="auto-export">
+            <option value="0">Av</option>
+            <option value="1">Etter hver økt</option>
+            <option value="3">Etter hver 3. økt</option>
+            <option value="5">Etter hver 5. økt</option>
+            <option value="10">Etter hver 10. økt</option>
+          </select>
+        </label>
+        <p class="muted small">Laster automatisk ned en backup-fil (JSON) når du har lagret det valgte antallet økter.</p>
         <div class="btn-row">
           <button class="btn ghost" id="export-btn">Eksporter data</button>
           <button class="btn ghost" id="import-btn">Importer data</button>
