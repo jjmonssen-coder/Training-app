@@ -30,6 +30,9 @@
 
   // Standardpakke med øvelser (navn + kategori). Vekt/reps beregnes ved seeding.
   // repMin/repMax kan settes eksplisitt – f.eks. for mageøvelser med høyt repvolum.
+  // Standardintervall for tidsbaserte øvelser (sekunder) og økning per progresjon.
+  const TIME_DEFAULT = { min: 20, max: 45, increment: 5 };
+
   const STARTER_EXERCISES = [
     { name: "Leg Press",             category: "lower_big" },
     { name: "Leg Extension",         category: "lower_small" },
@@ -39,6 +42,7 @@
     { name: "Cross-body Leg Raises", category: "bodyweight", repMin: 15, repMax: 25 },
     { name: "Incline Chest Press",   category: "upper_push" },
     { name: "Deadlift",              category: "lower_big" },
+    { name: "Side Plank",            category: "bodyweight", measure: "time" },
   ];
 
   // Oppretter standardøvelsene med anbefalinger. Hopper over de som finnes fra før.
@@ -48,14 +52,16 @@
     let added = 0;
     for (const s of STARTER_EXERCISES) {
       if (existing.has(s.name.toLowerCase())) continue;
+      const time = s.measure === "time";
       state.exercises.push({
         id: uid(),
         name: s.name,
         category: s.category,
-        weight: recommendStartWeight(s.category),
-        increment: CATEGORY[s.category].increment,
-        repMin: s.repMin != null ? s.repMin : rMin,
-        repMax: s.repMax != null ? s.repMax : rMax,
+        measure: time ? "time" : "reps",
+        weight: time ? 0 : recommendStartWeight(s.category),
+        increment: time ? TIME_DEFAULT.increment : CATEGORY[s.category].increment,
+        repMin: s.repMin != null ? s.repMin : time ? TIME_DEFAULT.min : rMin,
+        repMax: s.repMax != null ? s.repMax : time ? TIME_DEFAULT.max : rMax,
         sets: 3,
       });
       added++;
@@ -85,6 +91,8 @@
       const s = Object.assign(defaultState(), parsed);
       // Sørg for at nye innstillingsfelter alltid har standardverdier.
       s.settings = Object.assign({ autoExportEvery: 5 }, s.settings || {});
+      // Bakoverkompatibilitet: eldre øvelser mangler måletype (antas reps).
+      (s.exercises || []).forEach((e) => { if (!e.measure) e.measure = "reps"; });
       return s;
     } catch (e) {
       console.error("Kunne ikke laste data:", e);
@@ -126,6 +134,12 @@
     return GOAL_REPS[goal] || GOAL_REPS.hypertrophy;
   }
 
+  // Tidsbasert øvelse måles i sekunder (hold) i stedet for repetisjoner.
+  const isTime = (ex) => !!ex && ex.measure === "time";
+
+  // Etikett for "count"-verdien: "sek" for tidsbaserte, ellers "reps".
+  const countLabel = (ex) => (isTime(ex) ? "sek" : "reps");
+
   // Estimert 1RM (Epley). Begrenset til reps<=12 for rimelig nøyaktighet.
   function epley1RM(weight, reps) {
     if (reps <= 1) return weight;
@@ -141,6 +155,11 @@
     return best;
   }
 
+  // Beste "count" i en økt: for tidsbaserte = lengste hold (sek), ellers flest reps.
+  function bestCountOfLog(log) {
+    return Math.max(0, ...log.sets.map((s) => Number(s.reps) || 0));
+  }
+
   // Dobbel/lineær progresjon: gitt siste økt for en øvelse, foreslå neste mål.
   function nextTarget(exercise) {
     const logs = logsForExercise(exercise.id).sort(byDate);
@@ -148,6 +167,26 @@
     const inc = Number(exercise.increment) || 2.5;
     const repMax = Number(exercise.repMax);
     const repMin = Number(exercise.repMin);
+
+    // Tidsbasert: progresjon skjer ved å øke holdetiden (sekunder), ikke vekt.
+    if (isTime(exercise)) {
+      if (!last) {
+        return {
+          weight: 0,
+          reps: repMin,
+          note: `Første økt. Hold i ca. ${repMin} sek med god teknikk på hver side.`,
+          progressed: false,
+        };
+      }
+      const lastBest = bestCountOfLog(last);
+      const targetSec = lastBest + inc;
+      return {
+        weight: 0,
+        reps: targetSec,
+        note: `Prøv å holde <b>${targetSec} sek</b> – ${inc} sek mer enn forrige beste (${lastBest} sek). Øk gradvis.`,
+        progressed: targetSec > lastBest,
+      };
+    }
 
     if (!last) {
       return {
@@ -258,18 +297,34 @@
     document.getElementById("exercise-modal-title").textContent = ex ? "Rediger øvelse" : "Ny øvelse";
 
     const cat = ex ? ex.category : "upper_push";
+    const measure = ex ? (ex.measure || "reps") : "reps";
     document.getElementById("ex-name").value = ex ? ex.name : "";
     document.getElementById("ex-category").value = cat;
+    document.getElementById("ex-measure").value = measure;
 
     const [rMin, rMax] = recommendReps();
     document.getElementById("ex-weight").value = ex ? ex.weight : recommendStartWeight(cat);
-    document.getElementById("ex-increment").value = ex ? ex.increment : CATEGORY[cat].increment;
-    document.getElementById("ex-repmin").value = ex ? ex.repMin : rMin;
-    document.getElementById("ex-repmax").value = ex ? ex.repMax : rMax;
+    document.getElementById("ex-increment").value = ex ? ex.increment
+      : measure === "time" ? TIME_DEFAULT.increment : CATEGORY[cat].increment;
+    document.getElementById("ex-repmin").value = ex ? ex.repMin
+      : measure === "time" ? TIME_DEFAULT.min : rMin;
+    document.getElementById("ex-repmax").value = ex ? ex.repMax
+      : measure === "time" ? TIME_DEFAULT.max : rMax;
     document.getElementById("ex-sets").value = ex ? ex.sets : 3;
 
+    applyMeasureToModal();
     updateRecHint();
     modal.hidden = false;
+  }
+
+  // Tilpasser felt-etiketter i modalen etter valgt måletype (reps vs sekunder).
+  function applyMeasureToModal() {
+    const time = document.getElementById("ex-measure").value === "time";
+    document.getElementById("ex-weight-field").style.display = time ? "none" : "";
+    document.getElementById("ex-inc-label").textContent = time ? "Økning" : "Vektøkning";
+    document.getElementById("ex-inc-unit").textContent = time ? "sek" : unit();
+    document.getElementById("ex-repmin-label").textContent = time ? "Sekunder fra" : "Reps fra";
+    document.getElementById("ex-repmax-label").textContent = time ? "Sekunder til" : "Reps til";
   }
 
   function closeExerciseModal() {
@@ -280,16 +335,44 @@
   // Når kategori endres i modalen: foreslå vekt/økning på nytt (kun for ny øvelse).
   document.getElementById("ex-category").addEventListener("change", (e) => {
     const cat = e.target.value;
-    if (!editingExerciseId) {
+    if (!editingExerciseId && document.getElementById("ex-measure").value !== "time") {
       document.getElementById("ex-weight").value = recommendStartWeight(cat);
       document.getElementById("ex-increment").value = CATEGORY[cat].increment;
     }
     updateRecHint();
   });
 
+  // Når måletype endres: bytt etiketter og foreslå passende standardverdier.
+  document.getElementById("ex-measure").addEventListener("change", (e) => {
+    const time = e.target.value === "time";
+    if (!editingExerciseId) {
+      if (time) {
+        document.getElementById("ex-weight").value = 0;
+        document.getElementById("ex-increment").value = TIME_DEFAULT.increment;
+        document.getElementById("ex-repmin").value = TIME_DEFAULT.min;
+        document.getElementById("ex-repmax").value = TIME_DEFAULT.max;
+      } else {
+        const cat = document.getElementById("ex-category").value;
+        const [rMin, rMax] = recommendReps();
+        document.getElementById("ex-weight").value = recommendStartWeight(cat);
+        document.getElementById("ex-increment").value = CATEGORY[cat].increment;
+        document.getElementById("ex-repmin").value = rMin;
+        document.getElementById("ex-repmax").value = rMax;
+      }
+    }
+    applyMeasureToModal();
+    updateRecHint();
+  });
+
   function updateRecHint() {
     const cat = document.getElementById("ex-category").value;
     const hint = document.getElementById("ex-rec-hint");
+    if (document.getElementById("ex-measure").value === "time") {
+      const lo = document.getElementById("ex-repmin").value || TIME_DEFAULT.min;
+      const hi = document.getElementById("ex-repmax").value || TIME_DEFAULT.max;
+      hint.innerHTML = `Anbefaling: hold i <b>${lo}–${hi} sek</b> per sett. Øk holdetiden litt hver økt når det begynner å bli lett.`;
+      return;
+    }
     const [rMin, rMax] = recommendReps();
     const rec = recommendStartWeight(cat);
     if (cat === "bodyweight") {
@@ -301,13 +384,15 @@
 
   document.getElementById("exercise-form").addEventListener("submit", (e) => {
     e.preventDefault();
-    const repMin = clampInt(document.getElementById("ex-repmin").value, 1, 100, 8);
-    const repMax = clampInt(document.getElementById("ex-repmax").value, repMin, 100, Math.max(repMin, 12));
+    const measure = document.getElementById("ex-measure").value === "time" ? "time" : "reps";
+    const repMin = clampInt(document.getElementById("ex-repmin").value, 1, 600, measure === "time" ? 20 : 8);
+    const repMax = clampInt(document.getElementById("ex-repmax").value, repMin, 600, Math.max(repMin, measure === "time" ? 45 : 12));
     const data = {
       name: document.getElementById("ex-name").value.trim(),
       category: document.getElementById("ex-category").value,
-      weight: Number(document.getElementById("ex-weight").value) || 0,
-      increment: Number(document.getElementById("ex-increment").value) || 2.5,
+      measure,
+      weight: measure === "time" ? 0 : Number(document.getElementById("ex-weight").value) || 0,
+      increment: Number(document.getElementById("ex-increment").value) || (measure === "time" ? 5 : 2.5),
       repMin,
       repMax,
       sets: clampInt(document.getElementById("ex-sets").value, 1, 10, 3),
@@ -345,19 +430,27 @@
       const cat = CATEGORY[ex.category];
       const div = document.createElement("div");
       div.className = "exercise-card";
-      const weightText = ex.category === "bodyweight" && !ex.weight
-        ? "Kroppsvekt"
-        : `${fmt(ex.weight)} ${unit()}`;
-      div.innerHTML = `
-        <div class="ex-info">
-          <span class="badge">${cat ? cat.label : ex.category}</span>
-          <h3>${escapeHtml(ex.name)}</h3>
-          <div class="ex-meta">
+      let meta;
+      if (isTime(ex)) {
+        meta = `
+            <span>Hold: <b>${ex.repMin}–${ex.repMax} sek</b></span>
+            <span>Sett: <b>${ex.sets}</b></span>
+            <span>Økning: <b>${fmt(ex.increment)} sek</b></span>`;
+      } else {
+        const weightText = ex.category === "bodyweight" && !ex.weight
+          ? "Kroppsvekt"
+          : `${fmt(ex.weight)} ${unit()}`;
+        meta = `
             <span>Start: <b>${weightText}</b></span>
             <span>Reps: <b>${ex.repMin}–${ex.repMax}</b></span>
             <span>Sett: <b>${ex.sets}</b></span>
-            <span>Økning: <b>${fmt(ex.increment)} ${unit()}</b></span>
-          </div>
+            <span>Økning: <b>${fmt(ex.increment)} ${unit()}</b></span>`;
+      }
+      div.innerHTML = `
+        <div class="ex-info">
+          <span class="badge">${cat ? cat.label : ex.category}${isTime(ex) ? " · tid" : ""}</span>
+          <h3>${escapeHtml(ex.name)}</h3>
+          <div class="ex-meta">${meta}</div>
         </div>
         <div class="ex-actions">
           <button class="btn ghost" data-edit="${ex.id}">✎</button>
@@ -438,31 +531,44 @@
 
     const target = nextTarget(ex);
     const recEl = document.getElementById("log-recommendation");
-    recEl.innerHTML =
-      `<b>Anbefalt i dag:</b> ${ex.sets} sett × ${target.reps} reps` +
-      (ex.category === "bodyweight" && !target.weight ? " (kroppsvekt)" : ` @ ${fmt(target.weight)} ${unit()}`) +
-      `<br><span class="muted small">${target.note}</span>`;
+    if (isTime(ex)) {
+      recEl.innerHTML =
+        `<b>Anbefalt i dag:</b> ${ex.sets} sett × ${target.reps} sek (hold)` +
+        `<br><span class="muted small">${target.note}</span>`;
+    } else {
+      recEl.innerHTML =
+        `<b>Anbefalt i dag:</b> ${ex.sets} sett × ${target.reps} reps` +
+        (ex.category === "bodyweight" && !target.weight ? " (kroppsvekt)" : ` @ ${fmt(target.weight)} ${unit()}`) +
+        `<br><span class="muted small">${target.note}</span>`;
+    }
 
-    // Forhåndsfyll settene med anbefalt vekt/reps.
-    buildSetRows(ex.sets, target.weight, target.reps);
+    // Forhåndsfyll settene med anbefalt verdi.
+    buildSetRows(ex.sets, target.weight, target.reps, isTime(ex));
   }
 
-  function buildSetRows(count, weight, reps) {
+  function buildSetRows(count, weight, reps, time) {
     const container = document.getElementById("log-sets");
-    container.innerHTML =
-      `<div class="set-head"><span></span><span>Vekt (${unit()})</span><span>Reps</span><span></span></div>`;
-    for (let i = 0; i < count; i++) addSetRow(weight, reps);
+    container.innerHTML = time
+      ? `<div class="set-head time"><span></span><span>Sekunder (hold)</span><span></span></div>`
+      : `<div class="set-head"><span></span><span>Vekt (${unit()})</span><span>Reps</span><span></span></div>`;
+    for (let i = 0; i < count; i++) addSetRow(weight, reps, time);
   }
 
-  function addSetRow(weight, reps) {
+  function addSetRow(weight, reps, time) {
     const container = document.getElementById("log-sets");
     const row = document.createElement("div");
-    row.className = "set-row";
+    row.className = time ? "set-row time" : "set-row";
     const num = container.querySelectorAll(".set-row").length + 1;
-    row.innerHTML = `
+    const repVal = reps != null ? reps : "";
+    row.innerHTML = time
+      ? `
+      <span class="set-num">${num}</span>
+      <input type="number" class="set-reps" min="0" step="1" value="${repVal}" />
+      <button type="button" class="remove-set" title="Fjern">✕</button>`
+      : `
       <span class="set-num">${num}</span>
       <input type="number" class="set-weight" min="0" step="0.5" value="${weight != null ? weight : ""}" />
-      <input type="number" class="set-reps" min="0" step="1" value="${reps != null ? reps : ""}" />
+      <input type="number" class="set-reps" min="0" step="1" value="${repVal}" />
       <button type="button" class="remove-set" title="Fjern">✕</button>`;
     row.querySelector(".remove-set").addEventListener("click", () => {
       row.remove();
@@ -479,9 +585,12 @@
 
   document.getElementById("log-exercise").addEventListener("change", onLogExerciseChange);
   document.getElementById("add-set-btn").addEventListener("click", () => {
+    const exId = document.getElementById("log-exercise").value;
+    const ex = state.exercises.find((e) => e.id === exId);
+    const time = isTime(ex);
     const rows = document.querySelectorAll("#log-sets .set-row");
-    const lastW = rows.length ? rows[rows.length - 1].querySelector(".set-weight").value : "";
-    addSetRow(lastW, "");
+    const lastWEl = rows.length ? rows[rows.length - 1].querySelector(".set-weight") : null;
+    addSetRow(lastWEl ? lastWEl.value : "", "", time);
   });
 
   document.getElementById("save-log-btn").addEventListener("click", () => {
@@ -491,11 +600,15 @@
 
     const sets = [];
     document.querySelectorAll("#log-sets .set-row").forEach((row) => {
-      const weight = Number(row.querySelector(".set-weight").value);
+      const weightEl = row.querySelector(".set-weight");
+      const weight = weightEl ? Number(weightEl.value) : 0;
       const reps = Number(row.querySelector(".set-reps").value);
       if (reps > 0) sets.push({ weight: isFinite(weight) ? weight : 0, reps });
     });
-    if (sets.length === 0) { toast("Fyll inn minst ett sett med reps", true); return; }
+    if (sets.length === 0) {
+      toast(isTime(ex) ? "Fyll inn minst ett sett med sekunder" : "Fyll inn minst ett sett med reps", true);
+      return;
+    }
 
     const date = document.getElementById("log-date").value || todayISO();
     state.logs.push({ id: uid(), date, exerciseId: exId, sets });
@@ -516,8 +629,13 @@
     container.innerHTML = "";
     for (const log of recent) {
       const ex = state.exercises.find((e) => e.id === log.exerciseId);
-      const setsText = log.sets.map((s) => `${fmt(s.weight)}×${s.reps}`).join(", ");
-      const est = best1RMOfLog(log);
+      const time = isTime(ex);
+      const setsText = time
+        ? log.sets.map((s) => `${s.reps} sek`).join(", ")
+        : `${log.sets.map((s) => `${fmt(s.weight)}×${s.reps}`).join(", ")} ${unit()}`;
+      const summary = time
+        ? `Beste hold: ${bestCountOfLog(log)} sek`
+        : `Est. 1RM: ${fmt(best1RMOfLog(log))} ${unit()}`;
       const div = document.createElement("div");
       div.className = "log-entry";
       div.innerHTML = `
@@ -525,9 +643,9 @@
           <span class="log-name">${ex ? escapeHtml(ex.name) : "Slettet øvelse"}</span>
           <span class="log-date">${formatDate(log.date)}</span>
         </div>
-        <div class="log-sets">${setsText} ${unit()}</div>
+        <div class="log-sets">${setsText}</div>
         <div class="log-top">
-          <span class="log-1rm">Est. 1RM: ${fmt(est)} ${unit()}</span>
+          <span class="log-1rm">${summary}</span>
           <button class="del-log" data-del-log="${log.id}">Slett</button>
         </div>`;
       container.appendChild(div);
@@ -574,13 +692,49 @@
     const ex = state.exercises.find((e) => e.id === exId);
     if (!ex) return;
     const logs = logsForExercise(exId).sort(byDate);
+    const time = isTime(ex);
 
-    // Statistikk
+    const chartTitle = document.getElementById("chart-title");
+    const chartSub = document.getElementById("chart-subtitle");
+
+    if (time) {
+      // Tidsbasert: følg lengste hold (sekunder) per økt.
+      const points = logs.map((l) => ({ date: l.date, val: bestCountOfLog(l) }));
+      const first = points[0].val;
+      const latest = points[points.length - 1].val;
+      const longest = Math.max(0, ...points.map((p) => p.val));
+      const change = first > 0 ? ((latest - first) / first) * 100 : 0;
+
+      chartTitle.textContent = "Lengste hold over tid";
+      chartSub.textContent = "Beste holdetid (sekunder) hver økt.";
+
+      document.getElementById("progress-stats").innerHTML = `
+        <div class="stat"><div class="stat-value">${fmt(latest)}</div><div class="stat-label">Beste hold nå (sek)</div></div>
+        <div class="stat"><div class="stat-value">${fmt(longest)}</div><div class="stat-label">Lengste hold (sek)</div></div>
+        <div class="stat"><div class="stat-value">${change >= 0 ? "+" : ""}${change.toFixed(0)}%</div><div class="stat-label">Endring holdetid</div></div>
+        <div class="stat"><div class="stat-value">${logs.length}</div><div class="stat-label">Antall økter</div></div>`;
+
+      const target = nextTarget(ex);
+      document.getElementById("next-target").innerHTML = `
+        <div class="target-box">
+          <div class="target-main">${ex.sets} × ${target.reps} sek</div>
+        </div>
+        <p class="target-desc">${target.note}</p>`;
+
+      drawChart(points);
+      renderHistory(logs, true);
+      return;
+    }
+
+    // Statistikk (reps/vekt)
     const points = logs.map((l) => ({ date: l.date, val: best1RMOfLog(l) }));
     const first = points[0].val;
     const latest = points[points.length - 1].val;
     const maxWeight = Math.max(...logs.flatMap((l) => l.sets.map((s) => Number(s.weight) || 0)));
     const change = first > 0 ? ((latest - first) / first) * 100 : 0;
+
+    chartTitle.textContent = "Estimert 1RM over tid";
+    chartSub.textContent = "Beregnet med Epley-formelen fra beste sett hver økt.";
 
     document.getElementById("progress-stats").innerHTML = `
       <div class="stat"><div class="stat-value">${fmt(latest)}</div><div class="stat-label">Est. 1RM nå (${unit()})</div></div>
@@ -599,22 +753,27 @@
       <p class="target-desc">${target.note}</p>`;
 
     drawChart(points);
-    renderHistory(logs);
+    renderHistory(logs, false);
   }
 
-  function renderHistory(logs) {
+  function renderHistory(logs, time) {
     const container = document.getElementById("progress-history");
     container.innerHTML = "";
     for (const log of logs.slice().reverse()) {
-      const setsText = log.sets.map((s) => `${fmt(s.weight)}×${s.reps}`).join(", ");
+      const setsText = time
+        ? log.sets.map((s) => `${s.reps} sek`).join(", ")
+        : `${log.sets.map((s) => `${fmt(s.weight)}×${s.reps}`).join(", ")} ${unit()}`;
+      const summary = time
+        ? `Beste: ${bestCountOfLog(log)} sek`
+        : `Est. 1RM: ${fmt(best1RMOfLog(log))} ${unit()}`;
       const div = document.createElement("div");
       div.className = "log-entry";
       div.innerHTML = `
         <div class="log-top">
           <span class="log-date">${formatDate(log.date)}</span>
-          <span class="log-1rm">Est. 1RM: ${fmt(best1RMOfLog(log))} ${unit()}</span>
+          <span class="log-1rm">${summary}</span>
         </div>
-        <div class="log-sets">${setsText} ${unit()}</div>`;
+        <div class="log-sets">${setsText}</div>`;
       container.appendChild(div);
     }
   }

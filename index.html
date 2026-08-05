@@ -143,8 +143,8 @@
       <div id="progress-content" hidden>
         <div class="stat-row" id="progress-stats"></div>
         <div class="card">
-          <h3>Estimert 1RM over tid</h3>
-          <p class="muted small">Beregnet med Epley-formelen fra beste sett hver økt.</p>
+          <h3 id="chart-title">Estimert 1RM over tid</h3>
+          <p class="muted small" id="chart-subtitle">Beregnet med Epley-formelen fra beste sett hver økt.</p>
           <canvas id="progress-chart" width="700" height="320"></canvas>
         </div>
         <div class="card">
@@ -247,24 +247,31 @@
             <option value="bodyweight">Kroppsvekt (pull-up, dips)</option>
           </select>
         </label>
+        <label class="block">
+          Måling
+          <select id="ex-measure">
+            <option value="reps">Repetisjoner</option>
+            <option value="time">Sekunder (hold/planke)</option>
+          </select>
+        </label>
         <div class="two-col">
-          <label>
+          <label id="ex-weight-field">
             Startvekt (<span class="unit-suffix">kg</span>)
             <input type="number" id="ex-weight" min="0" step="0.5" />
           </label>
           <label>
-            Vektøkning (<span class="unit-suffix">kg</span>)
+            <span id="ex-inc-label">Vektøkning</span> (<span id="ex-inc-unit">kg</span>)
             <input type="number" id="ex-increment" min="0.5" step="0.5" />
           </label>
         </div>
         <div class="two-col">
           <label>
-            Reps fra
-            <input type="number" id="ex-repmin" min="1" max="100" />
+            <span id="ex-repmin-label">Reps fra</span>
+            <input type="number" id="ex-repmin" min="1" max="600" />
           </label>
           <label>
-            Reps til
-            <input type="number" id="ex-repmax" min="1" max="100" />
+            <span id="ex-repmax-label">Reps til</span>
+            <input type="number" id="ex-repmax" min="1" max="600" />
           </label>
         </div>
         <label>
