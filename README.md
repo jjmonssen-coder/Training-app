@@ -9,16 +9,27 @@ Dataene dine lagres i nettleserens `localStorage`.
 
 ## Kom i gang
 
-Åpne `index.html` i en nettleser. Det er alt – ingen installasjon eller
-byggesteg.
+**Enklest (anbefalt):** dobbeltklikk oppstartsfila for ditt system – den
+starter en lokal server og åpner appen på `http://localhost:8000`:
+
+- **Windows:** `start.bat`
+- **Mac:** `start.command`
+- **Linux:** `start.sh` (eller `./start.sh` i terminalen)
+
+La vinduet som åpnes stå åpent mens du bruker appen; lukk det for å stoppe.
+Åpne alltid appen på denne måten – da huskes alle data mellom øktene.
+
+**Manuelt alternativ:**
 
 ```bash
-# Alternativ 1: dobbeltklikk index.html i filutforskeren
-
-# Alternativ 2: kjør en lokal server (anbefalt for full funksjonalitet)
-python3 -m http.server 8000
-# åpne deretter http://localhost:8000
+python3 -m http.server 8000   # åpne deretter http://localhost:8000
 ```
+
+> **Viktig om lagring:** Bruk den lokale versjonen (over) for å logge data over
+> tid. En eventuell nettbasert forhåndsvisning kjører i en sandkasse som kan
+> nullstille lagringen mellom åpninger, og egner seg bare for å se på appen.
+> Å dobbeltklikke `index.html` direkte (adresse `file://`) fungerer også, men
+> noen nettlesere lagrer ikke data på `file://` – derfor er lokal server tryggest.
 
 ## Slik fungerer den
 
