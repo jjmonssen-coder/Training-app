@@ -104,24 +104,33 @@
       <div class="view-head">
         <h2>Logg økt</h2>
       </div>
+      <p class="muted small" id="log-intro">
+        Logg én øvelse om gangen og bytt fritt mellom dem – det du fyller inn
+        beholdes. Trykk «Lagre hele økten» når du er ferdig med alle øvelsene.
+      </p>
+
       <div class="card">
-        <label class="block">
-          Velg øvelse
-          <select id="log-exercise"></select>
-        </label>
-
-        <div id="log-recommendation" class="recommendation"></div>
-
         <label class="block">
           Dato
           <input type="date" id="log-date" />
         </label>
 
+        <label class="block">
+          Øvelse
+          <select id="log-exercise"></select>
+        </label>
+
+        <div id="log-recommendation" class="recommendation"></div>
+
         <div id="log-sets" class="sets-editor"></div>
         <button class="btn ghost" id="add-set-btn" type="button">+ Legg til sett</button>
+      </div>
 
+      <div class="card">
+        <h3>Dagens økt</h3>
+        <div id="session-status"></div>
         <div class="log-actions">
-          <button class="btn primary" id="save-log-btn" type="button">Lagre økt</button>
+          <button class="btn primary" id="save-log-btn" type="button">Lagre hele økten</button>
         </div>
       </div>
 

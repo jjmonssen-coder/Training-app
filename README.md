@@ -74,8 +74,12 @@ Legg inn dine egne øvelser. For hver øvelse velger du en **type** (f.eks.
 Du kan overstyre alle forslagene.
 
 ### 3. Logg økt
-Velg øvelse og fyll inn vekt × reps for hvert sett. Appen forhåndsutfyller
-feltene med dagens anbefaling, så du ser målet ditt før du starter.
+En økt kan inneholde flere øvelser. Velg en øvelse, fyll inn vekt × reps (eller
+sekunder) for hvert sett, og bytt til neste øvelse – **det du fyller inn
+beholdes per øvelse**. «Dagens økt» viser alt du har lagt inn så langt. Når du
+er ferdig med alle øvelsene, trykker du **«Lagre hele økten»**, som lagrer hver
+øvelse for seg. Vekten forhåndsutfylles fra anbefalingen; reps/sekunder skriver
+du inn selv (anbefalt antall vises som hint i feltet).
 
 ### 4. Utvikling
 Se estimert 1RM over tid i en graf, nøkkeltall (endring i %, tyngste vekt,

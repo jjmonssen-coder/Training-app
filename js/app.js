@@ -506,6 +506,7 @@
       sel.innerHTML = '<option value="">Legg til en øvelse først</option>';
       document.getElementById("log-recommendation").innerHTML = "";
       document.getElementById("log-sets").innerHTML = "";
+      document.getElementById("session-status").innerHTML = "";
       renderRecentLogs();
       return;
     }
@@ -524,10 +525,17 @@
     renderRecentLogs();
   }
 
+  // Kladd for den pågående økten: exerciseId -> [{ w, r }] (råverdier fra felt).
+  // Gjør at det du fyller inn beholdes når du bytter øvelse, og at hele økten
+  // (alle øvelsene) kan lagres samlet.
+  let sessionDrafts = {};
+  let currentLogExId = null;
+
   function onLogExerciseChange() {
     const exId = document.getElementById("log-exercise").value;
     const ex = state.exercises.find((e) => e.id === exId);
     if (!ex) return;
+    currentLogExId = exId;
 
     const target = nextTarget(ex);
     const recEl = document.getElementById("log-recommendation");
@@ -542,37 +550,70 @@
         `<br><span class="muted small">${target.note}</span>`;
     }
 
-    // Forhåndsfyll settene med anbefalt verdi.
-    buildSetRows(ex.sets, target.weight, target.reps, isTime(ex));
+    const draft = sessionDrafts[exId];
+    if (draft && draft.length) {
+      // Gjenopprett det du allerede har fylt inn for denne øvelsen i økten.
+      renderDraftRows(draft, isTime(ex), target.reps);
+    } else {
+      // Forhåndsfyll vekt, men la reps/sek stå tom (anbefalingen vises som hint).
+      buildSetRows(ex.sets, isTime(ex) ? "" : target.weight, target.reps, isTime(ex));
+    }
+    renderSessionStatus();
   }
 
-  function buildSetRows(count, weight, reps, time) {
-    const container = document.getElementById("log-sets");
-    container.innerHTML = time
+  // Leser feltene som vises nå og lagrer dem som kladd for gjeldende øvelse.
+  function captureCurrentDraft() {
+    if (!currentLogExId) return;
+    const rows = [];
+    document.querySelectorAll("#log-sets .set-row").forEach((row) => {
+      const wEl = row.querySelector(".set-weight");
+      const rEl = row.querySelector(".set-reps");
+      rows.push({ w: wEl ? wEl.value : "", r: rEl ? rEl.value : "" });
+    });
+    if (rows.some((x) => x.w !== "" || x.r !== "")) sessionDrafts[currentLogExId] = rows;
+    else delete sessionDrafts[currentLogExId];
+  }
+
+  function setsHead(time) {
+    return time
       ? `<div class="set-head time"><span></span><span>Sekunder (hold)</span><span></span></div>`
       : `<div class="set-head"><span></span><span>Vekt (${unit()})</span><span>Reps</span><span></span></div>`;
-    for (let i = 0; i < count; i++) addSetRow(weight, reps, time);
   }
 
-  function addSetRow(weight, reps, time) {
+  function buildSetRows(count, weight, repsPlaceholder, time) {
+    const container = document.getElementById("log-sets");
+    container.innerHTML = setsHead(time);
+    for (let i = 0; i < count; i++) addSetRow(weight, "", time, repsPlaceholder);
+  }
+
+  function renderDraftRows(draft, time, repsPlaceholder) {
+    const container = document.getElementById("log-sets");
+    container.innerHTML = setsHead(time);
+    draft.forEach((d) => addSetRow(d.w, d.r, time, repsPlaceholder));
+  }
+
+  function addSetRow(weight, reps, time, placeholder) {
     const container = document.getElementById("log-sets");
     const row = document.createElement("div");
     row.className = time ? "set-row time" : "set-row";
     const num = container.querySelectorAll(".set-row").length + 1;
     const repVal = reps != null ? reps : "";
+    const ph = placeholder != null && placeholder !== "" ? ` placeholder="${placeholder}"` : "";
     row.innerHTML = time
       ? `
       <span class="set-num">${num}</span>
-      <input type="number" class="set-reps" min="0" step="1" value="${repVal}" />
+      <input type="number" class="set-reps" min="0" step="1" value="${repVal}"${ph} />
       <button type="button" class="remove-set" title="Fjern">✕</button>`
       : `
       <span class="set-num">${num}</span>
       <input type="number" class="set-weight" min="0" step="0.5" value="${weight != null ? weight : ""}" />
-      <input type="number" class="set-reps" min="0" step="1" value="${repVal}" />
+      <input type="number" class="set-reps" min="0" step="1" value="${repVal}"${ph} />
       <button type="button" class="remove-set" title="Fjern">✕</button>`;
     row.querySelector(".remove-set").addEventListener("click", () => {
       row.remove();
       renumberSets();
+      captureCurrentDraft();
+      renderSessionStatus();
     });
     container.appendChild(row);
   }
@@ -583,40 +624,74 @@
     });
   }
 
-  document.getElementById("log-exercise").addEventListener("change", onLogExerciseChange);
-  document.getElementById("add-set-btn").addEventListener("click", () => {
-    const exId = document.getElementById("log-exercise").value;
-    const ex = state.exercises.find((e) => e.id === exId);
-    const time = isTime(ex);
-    const rows = document.querySelectorAll("#log-sets .set-row");
-    const lastWEl = rows.length ? rows[rows.length - 1].querySelector(".set-weight") : null;
-    addSetRow(lastWEl ? lastWEl.value : "", "", time);
+  // Oppdater kladd + øktoversikt løpende mens du skriver.
+  document.getElementById("log-sets").addEventListener("input", () => {
+    captureCurrentDraft();
+    renderSessionStatus();
   });
 
-  document.getElementById("save-log-btn").addEventListener("click", () => {
-    const exId = document.getElementById("log-exercise").value;
-    const ex = state.exercises.find((e) => e.id === exId);
-    if (!ex) { toast("Velg en øvelse først", true); return; }
+  document.getElementById("log-exercise").addEventListener("change", onLogExerciseChange);
+  document.getElementById("add-set-btn").addEventListener("click", () => {
+    const ex = state.exercises.find((e) => e.id === currentLogExId);
+    if (!ex) return;
+    const rows = document.querySelectorAll("#log-sets .set-row");
+    const lastWEl = rows.length ? rows[rows.length - 1].querySelector(".set-weight") : null;
+    addSetRow(lastWEl ? lastWEl.value : "", "", isTime(ex), "");
+  });
 
-    const sets = [];
-    document.querySelectorAll("#log-sets .set-row").forEach((row) => {
-      const weightEl = row.querySelector(".set-weight");
-      const weight = weightEl ? Number(weightEl.value) : 0;
-      const reps = Number(row.querySelector(".set-reps").value);
-      if (reps > 0) sets.push({ weight: isFinite(weight) ? weight : 0, reps });
-    });
-    if (sets.length === 0) {
-      toast(isTime(ex) ? "Fyll inn minst ett sett med sekunder" : "Fyll inn minst ett sett med reps", true);
+  // Øvelsene som er fylt inn i økten (minst ett sett med reps/sek > 0).
+  function sessionEntries() {
+    const out = [];
+    for (const [exId, rows] of Object.entries(sessionDrafts)) {
+      const ex = state.exercises.find((e) => e.id === exId);
+      if (!ex) continue;
+      const sets = rows
+        .map((d) => ({ weight: d.w !== "" ? Number(d.w) : 0, reps: Number(d.r) || 0 }))
+        .filter((s) => s.reps > 0)
+        .map((s) => ({ weight: isFinite(s.weight) ? s.weight : 0, reps: s.reps }));
+      if (sets.length) out.push({ ex, sets });
+    }
+    return out;
+  }
+
+  function renderSessionStatus() {
+    const el = document.getElementById("session-status");
+    if (!el) return;
+    const entries = sessionEntries();
+    if (entries.length === 0) {
+      el.innerHTML = '<p class="muted small">Ingen øvelser fylt inn ennå. Fyll inn sett over – du kan bytte øvelse underveis uten å miste noe.</p>';
       return;
     }
+    el.innerHTML = entries
+      .map((en) => {
+        const time = isTime(en.ex);
+        const setsText = time
+          ? en.sets.map((s) => `${s.reps} sek`).join(", ")
+          : `${en.sets.map((s) => `${fmt(s.weight)}×${s.reps}`).join(", ")} ${unit()}`;
+        return `<div class="session-item"><span class="session-ex">✓ ${escapeHtml(en.ex.name)}</span><span class="session-sets">${setsText}</span></div>`;
+      })
+      .join("");
+  }
 
+  document.getElementById("save-log-btn").addEventListener("click", () => {
+    captureCurrentDraft();
+    const entries = sessionEntries();
+    if (entries.length === 0) {
+      toast("Fyll inn minst ett sett før du lagrer", true);
+      return;
+    }
     const date = document.getElementById("log-date").value || todayISO();
-    state.logs.push({ id: uid(), date, exerciseId: exId, sets });
+    for (const en of entries) {
+      state.logs.push({ id: uid(), date, exerciseId: en.ex.id, sets: en.sets });
+    }
     saveState();
+    sessionDrafts = {};
     const backedUp = maybeAutoExport();
-    toast(backedUp ? "Økt lagret + backup lastet ned 💾" : "Økt lagret 💾");
+    const n = entries.length;
+    toast(`${n} øvelse${n > 1 ? "r" : ""} lagret${backedUp ? " + backup lastet ned" : ""} 💾`);
     onLogExerciseChange();
     renderRecentLogs();
+    renderSessionStatus();
   });
 
   function renderRecentLogs() {
