@@ -849,4 +849,11 @@
   } else {
     showView("onboarding");
   }
+
+  // Registrer service worker for offline-bruk (krever https eller localhost).
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    });
+  }
 })();

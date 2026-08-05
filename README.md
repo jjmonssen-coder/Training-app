@@ -31,6 +31,32 @@ python3 -m http.server 8000   # åpne deretter http://localhost:8000
 > Å dobbeltklikke `index.html` direkte (adresse `file://`) fungerer også, men
 > noen nettlesere lagrer ikke data på `file://` – derfor er lokal server tryggest.
 
+## På iPhone / mobil
+
+Appen er en installerbar web-app (PWA) med eget ikon, fullskjerm og
+offline-støtte. For å bruke den på iPhone må den ligge på en nettadresse
+(telefonen når ikke en fil på PC-en din).
+
+**Alternativ A – GitHub Pages (gratis, anbefalt):**
+1. På GitHub: **Settings → Pages**.
+2. Under *Build and deployment* velg **Deploy from a branch**, velg denne
+   greinen og mappe `/ (root)`, og lagre.
+3. Etter et par minutter får du en URL som `https://<brukernavn>.github.io/training-app/`.
+4. Åpne URL-en i **Safari** på iPhone.
+
+**Alternativ B – samme Wi-Fi (rask test, PC-en må være på):**
+1. Start serveren på PC-en slik at den er synlig på nettverket:
+   `python3 -m http.server 8000 --bind 0.0.0.0`
+2. Finn PC-ens lokale IP (f.eks. `192.168.1.42`).
+3. På iPhone (samme Wi-Fi): åpne `http://192.168.1.42:8000` i Safari.
+
+**Legg til på Hjem-skjerm (begge alternativer):**
+I Safari: trykk **Del**-knappen → **Legg til på Hjem-skjerm**. Da får du et
+app-ikon som åpner appen i fullskjerm, og Safari husker dataene dine.
+
+> Data lagres per enhet. For å flytte historikk mellom PC og iPhone: bruk
+> **Eksporter** på den ene og **Importer** på den andre (Innstillinger → Data).
+
 ## Slik fungerer den
 
 ### 1. Profil
